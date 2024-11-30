@@ -1,0 +1,18 @@
+syntax = "proto3";
+
+package finance;
+
+option go_package = "/finance";
+
+import "google/protobuf/empty.proto";
+
+service FinanceService {
+  rpc AddIncome (AddIncomeRequest) returns (google.protobuf.Empty);
+}
+
+message AddIncomeRequest {
+  int64 user_id = 1;
+  int32 category_id = 2;
+  double amount = 3;
+  string description = 4;
+}
