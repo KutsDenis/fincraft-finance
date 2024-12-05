@@ -10,8 +10,9 @@ import (
 
 // Config содержит конфигурацию приложения.
 type Config struct {
-	DBDSN    string `env:"DB_DSN,required"`
-	GRPCPort string `env:"GRPC_PORT" envDefault:"50051"`
+	DBDSN       string `env:"DB_DSN,required"`
+	GRPCPort    string `env:"GRPC_PORT" envDefault:"50051"`
+	MetricsPort string `env:"METRICS_PORT" envDefault:"9091"`
 }
 
 // LoadConfig загружает конфигурацию из переменных окружения или файла .env.
