@@ -2,12 +2,13 @@ package interfaces
 
 import (
 	"context"
-	"fincraft-finance/api/finance"
-	"fincraft-finance/internal/usecases"
-	"google.golang.org/protobuf/types/known/emptypb"
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/types/known/emptypb"
+
+	"fincraft-finance/api/finance"
+	"fincraft-finance/internal/usecases"
 )
 
 // FinanceHandler обрабатывает запросы к сервису финансов

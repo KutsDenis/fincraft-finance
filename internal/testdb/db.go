@@ -22,6 +22,7 @@ const (
 	IncomesTable = "incomes"
 )
 
+// DB хранит соединение с тестовой базой данных
 var DB *sql.DB
 
 // SetupTestDB инициализирует подключение к тестовой базе

@@ -5,11 +5,11 @@ import (
 	"errors"
 	"testing"
 
-	"fincraft-finance/internal/usecases"
-	"fincraft-finance/internal/usecases/mocks"
-
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
+
+	"fincraft-finance/internal/usecases"
+	"fincraft-finance/internal/usecases/mocks"
 )
 
 func setupTest(t *testing.T) (*gomock.Controller, *mocks.MockIncomeRepository, *usecases.IncomeUseCase) {
@@ -19,19 +19,19 @@ func setupTest(t *testing.T) (*gomock.Controller, *mocks.MockIncomeRepository, *
 	return ctrl, mockRepo, useCase
 }
 
-func TestIncomeUseCase_AddIncome_WhenValidInput_ShouldSucceed(t *testing.T) {
+func Test_IncomeUseCase_AddIncome_ReturnsNoError_WhenValidInput(t *testing.T) {
 	ctrl, mockRepo, useCase := setupTest(t)
 	defer ctrl.Finish()
 
 	ctx := context.Background()
-	mockRepo.EXPECT().AddIncome(ctx, 1, 2, 100.50, "Test income").Return(nil)
+	mockRepo.EXPECT().AddIncome(ctx, int64(1), 2, 100.50, "Test income").Return(nil)
 
-	err := useCase.AddIncome(ctx, 1, 2, 100.50, "Test income")
+	err := useCase.AddIncome(ctx, int64(1), 2, 100.50, "Test income")
 
 	assert.NoError(t, err)
 }
 
-func TestIncomeUseCase_AddIncome_WhenInvalidInput_ShouldReturnValidationError(t *testing.T) {
+func Test_IncomeUseCase_AddIncome_ReturnsValidationError_WhenInvalidInput(t *testing.T) {
 	_, _, useCase := setupTest(t)
 
 	tests := []struct {
@@ -58,14 +58,14 @@ func TestIncomeUseCase_AddIncome_WhenInvalidInput_ShouldReturnValidationError(t 
 	}
 }
 
-func TestIncomeUseCase_AddIncome_WhenRepoFails_ShouldReturnError(t *testing.T) {
+func Test_IncomeUseCase_AddIncome_ReturnsError_WhenRepoFails(t *testing.T) {
 	ctrl, mockRepo, useCase := setupTest(t)
 	defer ctrl.Finish()
 
 	ctx := context.Background()
-	mockRepo.EXPECT().AddIncome(ctx, 1, 2, 100.0, "Test income").Return(errors.New("db error"))
+	mockRepo.EXPECT().AddIncome(ctx, int64(1), 2, 100.0, "Test income").Return(errors.New("db error"))
 
-	err := useCase.AddIncome(ctx, 1, 2, 100, "Test income")
+	err := useCase.AddIncome(ctx, int64(1), 2, 100, "Test income")
 
 	assert.Error(t, err)
 	assert.EqualError(t, err, "db error")

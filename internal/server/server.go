@@ -1,11 +1,14 @@
 package server
 
 import (
-	"fincraft-finance/api/finance"
-	"google.golang.org/grpc"
 	"net"
+
+	"google.golang.org/grpc"
+
+	"fincraft-finance/api/finance"
 )
 
+// RunGRPCServer запускает gRPC сервер на указанном порту
 func RunGRPCServer(port string, handler finance.FinanceServiceServer) error {
 	grpcServer := grpc.NewServer()
 

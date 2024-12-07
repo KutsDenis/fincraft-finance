@@ -2,8 +2,9 @@ package usecases
 
 import (
 	"context"
-	"fincraft-finance/internal/domain"
 	"fmt"
+
+	"fincraft-finance/internal/domain"
 )
 
 //go:generate mockgen -source=income_usecase.go -destination=mocks/income_usecase_mock.go -package=mocks
