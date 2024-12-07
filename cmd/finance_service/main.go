@@ -4,6 +4,7 @@ import (
 	"fincraft-finance/internal/config"
 	"fincraft-finance/internal/infrastructure"
 	"fincraft-finance/internal/interfaces"
+	"fincraft-finance/internal/metrics"
 	"fincraft-finance/internal/server"
 	"fincraft-finance/internal/usecases"
 	"go.uber.org/zap"
@@ -26,6 +27,9 @@ func main() {
 		os.Exit(1)
 	}
 	log.Info("Configuration loaded successfully")
+
+	// Метрики
+	go metrics.StartMetricsServer(cfg.MetricsPort)
 
 	// Подключение к базе данных
 	db, err := infrastructure.NewDBConnection(cfg.DBDSN)
