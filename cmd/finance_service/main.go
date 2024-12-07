@@ -1,16 +1,17 @@
 package main
 
 import (
+	"os"
+
+	"github.com/KutsDenis/logzap"
+	"go.uber.org/zap"
+
 	"fincraft-finance/internal/config"
 	"fincraft-finance/internal/infrastructure"
 	"fincraft-finance/internal/interfaces"
 	"fincraft-finance/internal/metrics"
 	"fincraft-finance/internal/server"
 	"fincraft-finance/internal/usecases"
-	"go.uber.org/zap"
-	"os"
-
-	"github.com/KutsDenis/logzap"
 )
 
 func main() {

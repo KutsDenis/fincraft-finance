@@ -3,11 +3,13 @@ package infrastructure_test
 import (
 	"context"
 	"database/sql"
-	"fincraft-finance/internal/infrastructure"
-	"fincraft-finance/internal/testdb"
+	"testing"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"testing"
+
+	"fincraft-finance/internal/infrastructure"
+	"fincraft-finance/internal/testdb"
 )
 
 func TestMain(m *testing.M) {
@@ -25,7 +27,7 @@ func seedDefaultUser(t *testing.T) {
 	require.NoError(t, err)
 }
 
-func TestIntegration_IncomeRepository_AddIncome_Success(t *testing.T) {
+func Test_IncomeRepository_AddIncome_ReturnsNoError_WhenValidInput(t *testing.T) {
 	defer func() {
 		if err := testdb.TruncateTables(testdb.DB, testdb.UsersTable, testdb.IncomesTable); err != nil {
 			t.Fatal(err)
@@ -40,7 +42,7 @@ func TestIntegration_IncomeRepository_AddIncome_Success(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-func TestIntegration_IncomeRepository_AddIncome_HandlesDBError(t *testing.T) {
+func Test_IncomeRepository_AddIncome_ReturnsError_WhenUserInvalid(t *testing.T) {
 	defer func() {
 		if err := testdb.TruncateTables(testdb.DB, testdb.UsersTable, testdb.IncomesTable); err != nil {
 			t.Fatal(err)
@@ -55,7 +57,7 @@ func TestIntegration_IncomeRepository_AddIncome_HandlesDBError(t *testing.T) {
 	assert.Contains(t, err.Error(), "violates foreign key constraint")
 }
 
-func TestIntegration_IncomeRepository_AddIncome_HandlesInvalidData(t *testing.T) {
+func Test_IncomeRepository_AddIncome_ReturnsError_WhenInvalidAmount(t *testing.T) {
 	defer func() {
 		if err := testdb.TruncateTables(testdb.DB, testdb.UsersTable, testdb.IncomesTable); err != nil {
 			t.Fatal(err)
@@ -71,7 +73,7 @@ func TestIntegration_IncomeRepository_AddIncome_HandlesInvalidData(t *testing.T)
 	assert.Contains(t, err.Error(), "violates check constraint")
 }
 
-func TestIntegration_IncomeRepository_AddIncome_HandlesDBConnectionError(t *testing.T) {
+func Test_IncomeRepository_AddIncome_ReturnsError_WhenConnectionInvalid(t *testing.T) {
 	invalidDB, err := sql.Open("postgres",
 		"postgres://invalid_user:invalid_password@localhost:5434/invalid_db?sslmode=disable")
 	if err != nil {

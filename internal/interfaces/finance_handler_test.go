@@ -3,14 +3,16 @@ package interfaces_test
 import (
 	"context"
 	"errors"
-	"fincraft-finance/api/finance"
-	"fincraft-finance/internal/interfaces"
-	"fincraft-finance/internal/usecases/mocks"
+	"testing"
+
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	"testing"
+
+	"fincraft-finance/api/finance"
+	"fincraft-finance/internal/interfaces"
+	"fincraft-finance/internal/usecases/mocks"
 )
 
 func setupTest(t *testing.T) (*gomock.Controller, *mocks.MockIncomeService, *interfaces.FinanceHandler) {
@@ -21,7 +23,7 @@ func setupTest(t *testing.T) (*gomock.Controller, *mocks.MockIncomeService, *int
 	return ctrl, mockUsecase, handler
 }
 
-func TestFinanceHandler_AddIncome_WhenValidInput_ShouldReturnResponse(t *testing.T) {
+func Test_FinanceHandler_AddIncome_ReturnsNoError_WhenValidInput(t *testing.T) {
 	ctrl, mockUsecase, handler := setupTest(t)
 	defer ctrl.Finish()
 
@@ -34,7 +36,7 @@ func TestFinanceHandler_AddIncome_WhenValidInput_ShouldReturnResponse(t *testing
 
 	ctx := context.Background()
 	mockUsecase.EXPECT().
-		AddIncome(ctx, 1, 2, 100.50, "Test income").
+		AddIncome(ctx, int64(1), 2, 100.50, "Test income").
 		Return(nil)
 
 	resp, err := handler.AddIncome(ctx, req)
@@ -43,7 +45,7 @@ func TestFinanceHandler_AddIncome_WhenValidInput_ShouldReturnResponse(t *testing
 	assert.NotNil(t, resp)
 }
 
-func TestFinanceHandler_AddIncome_WhenUseCaseFails_ShouldReturnInternalError(t *testing.T) {
+func Test_FinanceHandler_AddIncome_ReturnsInternalError_WhenUseCaseFails(t *testing.T) {
 	ctrl, mockUsecase, handler := setupTest(t)
 	defer ctrl.Finish()
 
@@ -56,8 +58,8 @@ func TestFinanceHandler_AddIncome_WhenUseCaseFails_ShouldReturnInternalError(t *
 
 	ctx := context.Background()
 	mockUsecase.EXPECT().
-		AddIncome(ctx, 1, 2, 100.50, "Test income").
-		Return(nil, errors.New("db error"))
+		AddIncome(ctx, int64(1), 2, 100.50, "Test income").
+		Return(errors.New("db error"))
 
 	resp, err := handler.AddIncome(ctx, req)
 
@@ -67,7 +69,7 @@ func TestFinanceHandler_AddIncome_WhenUseCaseFails_ShouldReturnInternalError(t *
 	assert.Contains(t, err.Error(), "failed to add income: db error")
 }
 
-func TestFinanceHandler_AddIncome_WhenInvalidInput_ShouldReturnValidationError(t *testing.T) {
+func Test_FinanceHandler_AddIncome_ReturnsValidationError_WhenInvalidAmount(t *testing.T) {
 	ctrl, mockUsecase, handler := setupTest(t)
 	defer ctrl.Finish()
 
@@ -80,8 +82,8 @@ func TestFinanceHandler_AddIncome_WhenInvalidInput_ShouldReturnValidationError(t
 
 	ctx := context.Background()
 	mockUsecase.EXPECT().
-		AddIncome(ctx, 1, 2, -100.50, "Negative income").
-		Return(nil, errors.New("validation failed: amount must be greater than 0"))
+		AddIncome(ctx, int64(1), 2, -100.50, "Negative income").
+		Return(errors.New("validation failed: amount must be greater than 0"))
 
 	resp, err := handler.AddIncome(ctx, req)
 
