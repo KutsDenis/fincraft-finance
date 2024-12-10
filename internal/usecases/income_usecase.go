@@ -12,6 +12,7 @@ import (
 // IncomeService контракт сервиса для работы с доходами
 type IncomeService interface {
 	AddIncome(ctx context.Context, userID int64, categoryID int, amount float64, description string) error
+	GetIncomeForPeriod(ctx context.Context, userID int64, startDate string, endDate string) (float64, error)
 }
 
 // IncomeUseCase use-case для работы с доходами
@@ -38,4 +39,9 @@ func (u *IncomeUseCase) AddIncome(ctx context.Context, userID int64, categoryID 
 	}
 
 	return u.repo.AddIncome(ctx, userID, categoryID, amount, description)
+}
+
+// GetIncomeForPeriod возвращает общий доход за период
+func (u *IncomeUseCase) GetIncomeForPeriod(ctx context.Context, userID int64, startDate string, endDate string) (float64, error) {
+	return u.repo.GetIncomeForPeriod(ctx, userID, startDate, endDate)
 }

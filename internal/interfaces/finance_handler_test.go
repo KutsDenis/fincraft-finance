@@ -92,3 +92,25 @@ func Test_FinanceHandler_AddIncome_ReturnsValidationError_WhenInvalidAmount(t *t
 	assert.Equal(t, codes.Internal, status.Code(err))
 	assert.Contains(t, err.Error(), "validation failed")
 }
+
+func Test_FinanceHandler_GetIncomeForPeriod_ReturnsTotalIncome_WhenValidInput(t *testing.T) {
+	ctrl, mockUsecase, handler := setupTest(t)
+	defer ctrl.Finish()
+
+	req := &finance.GetIncomeForPeriodRequest{
+		UserId:    1,
+		StartDate: "2024-12-01",
+		EndDate:   "2024-12-31",
+	}
+
+	ctx := context.Background()
+	mockUsecase.EXPECT().
+		GetIncomeForPeriod(ctx, int64(1), "2024-12-01", "2024-12-31").
+		Return(100.50, nil)
+
+	resp, err := handler.GetIncomeForPeriod(ctx, req)
+
+	assert.NoError(t, err)
+	assert.NotNil(t, resp)
+	assert.Equal(t, 100.50, resp.TotalIncome)
+}

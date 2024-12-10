@@ -20,7 +20,8 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	FinanceService_AddIncome_FullMethodName = "/finance.FinanceService/AddIncome"
+	FinanceService_AddIncome_FullMethodName          = "/finance.FinanceService/AddIncome"
+	FinanceService_GetIncomeForPeriod_FullMethodName = "/finance.FinanceService/GetIncomeForPeriod"
 )
 
 // FinanceServiceClient is the client API for FinanceService service.
@@ -28,6 +29,7 @@ const (
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type FinanceServiceClient interface {
 	AddIncome(ctx context.Context, in *AddIncomeRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
+	GetIncomeForPeriod(ctx context.Context, in *GetIncomeForPeriodRequest, opts ...grpc.CallOption) (*GetIncomeForPeriodResponse, error)
 }
 
 type financeServiceClient struct {
@@ -48,11 +50,22 @@ func (c *financeServiceClient) AddIncome(ctx context.Context, in *AddIncomeReque
 	return out, nil
 }
 
+func (c *financeServiceClient) GetIncomeForPeriod(ctx context.Context, in *GetIncomeForPeriodRequest, opts ...grpc.CallOption) (*GetIncomeForPeriodResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetIncomeForPeriodResponse)
+	err := c.cc.Invoke(ctx, FinanceService_GetIncomeForPeriod_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // FinanceServiceServer is the server API for FinanceService service.
 // All implementations must embed UnimplementedFinanceServiceServer
 // for forward compatibility.
 type FinanceServiceServer interface {
 	AddIncome(context.Context, *AddIncomeRequest) (*emptypb.Empty, error)
+	GetIncomeForPeriod(context.Context, *GetIncomeForPeriodRequest) (*GetIncomeForPeriodResponse, error)
 	mustEmbedUnimplementedFinanceServiceServer()
 }
 
@@ -65,6 +78,9 @@ type UnimplementedFinanceServiceServer struct{}
 
 func (UnimplementedFinanceServiceServer) AddIncome(context.Context, *AddIncomeRequest) (*emptypb.Empty, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method AddIncome not implemented")
+}
+func (UnimplementedFinanceServiceServer) GetIncomeForPeriod(context.Context, *GetIncomeForPeriodRequest) (*GetIncomeForPeriodResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetIncomeForPeriod not implemented")
 }
 func (UnimplementedFinanceServiceServer) mustEmbedUnimplementedFinanceServiceServer() {}
 func (UnimplementedFinanceServiceServer) testEmbeddedByValue()                        {}
@@ -105,6 +121,24 @@ func _FinanceService_AddIncome_Handler(srv interface{}, ctx context.Context, dec
 	return interceptor(ctx, in, info, handler)
 }
 
+func _FinanceService_GetIncomeForPeriod_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetIncomeForPeriodRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(FinanceServiceServer).GetIncomeForPeriod(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: FinanceService_GetIncomeForPeriod_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(FinanceServiceServer).GetIncomeForPeriod(ctx, req.(*GetIncomeForPeriodRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // FinanceService_ServiceDesc is the grpc.ServiceDesc for FinanceService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -115,6 +149,10 @@ var FinanceService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "AddIncome",
 			Handler:    _FinanceService_AddIncome_Handler,
+		},
+		{
+			MethodName: "GetIncomeForPeriod",
+			Handler:    _FinanceService_GetIncomeForPeriod_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

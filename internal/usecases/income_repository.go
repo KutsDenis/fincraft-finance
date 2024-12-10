@@ -7,4 +7,5 @@ import "context"
 // IncomeRepository репозиторий для работы с доходами
 type IncomeRepository interface {
 	AddIncome(ctx context.Context, userID int64, categoryID int, amount float64, description string) error
+	GetIncomeForPeriod(ctx context.Context, userID int64, startDate string, endDate string) (float64, error)
 }

@@ -23,3 +23,13 @@ func (r *IncomeRepository) AddIncome(ctx context.Context, userID int64, category
 
 	return err
 }
+
+// GetIncomeForPeriod возвращает общий доход за период
+func (r *IncomeRepository) GetIncomeForPeriod(ctx context.Context, userID int64, startDate string, endDate string) (float64, error) {
+	var totalIncome float64
+	err := r.db.QueryRowContext(ctx, `
+		SELECT get_income_for_period($1, $2, $3)
+	`, userID, startDate, endDate).Scan(&totalIncome)
+
+	return totalIncome, err
+}

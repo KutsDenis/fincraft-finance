@@ -71,3 +71,55 @@ func Test_IncomeRepository_AddIncome_ReturnsError_WhenInvalidAmount(t *testing.T
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "violates check constraint")
 }
+
+func Test_IncomeRepository_GetIncomeForPeriod_ReturnsTotalIncome_WhenValidInput(t *testing.T) {
+	defer func() {
+		if err := testdb.TruncateTables(testdb.DB, testdb.UsersTable, testdb.IncomesTable); err != nil {
+			t.Fatal(err)
+		}
+	}()
+
+	seedDefaultUser(t)
+	repo := infrastructure.NewIncomeRepository(testdb.DB)
+
+	ctx := context.Background()
+	err := repo.AddIncome(ctx, 1, 2, 100.50, "test income")
+	require.NoError(t, err)
+	err = repo.AddIncome(ctx, 1, 2, 100.50, "test income 2")
+	require.NoError(t, err)
+
+	totalIncome, err := repo.GetIncomeForPeriod(ctx, 1, "2024-12-01", "2024-12-31")
+	assert.NoError(t, err)
+	assert.Equal(t, float64(201), totalIncome)
+}
+
+func Test_IncomeRepository_GetIncomeForPeriod_ReturnsError_WhenInvalidUser(t *testing.T) {
+	defer func() {
+		if err := testdb.TruncateTables(testdb.DB, testdb.UsersTable, testdb.IncomesTable); err != nil {
+			t.Fatal(err)
+		}
+	}()
+
+	repo := infrastructure.NewIncomeRepository(testdb.DB)
+
+	ctx := context.Background()
+	_, err := repo.GetIncomeForPeriod(ctx, 999, "2024-12-01", "2024-12-31")
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "error")
+}
+
+func Test_IncomeRepository_GetIncomeForPeriod_ReturnsError_WhenInvalidDate(t *testing.T) {
+	defer func() {
+		if err := testdb.TruncateTables(testdb.DB, testdb.UsersTable, testdb.IncomesTable); err != nil {
+			t.Fatal(err)
+		}
+	}()
+
+	seedDefaultUser(t)
+	repo := infrastructure.NewIncomeRepository(testdb.DB)
+
+	ctx := context.Background()
+	_, err := repo.GetIncomeForPeriod(ctx, 1, "invalid_date", "invalid_date")
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "invalid input syntax")
+}

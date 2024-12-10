@@ -2,6 +2,7 @@ package usecases_test
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"testing"
 
@@ -69,4 +70,37 @@ func Test_IncomeUseCase_AddIncome_ReturnsError_WhenRepoFails(t *testing.T) {
 
 	assert.Error(t, err)
 	assert.EqualError(t, err, "db error")
+}
+
+func Test_IncomeUseCase_GetIncomeForPeriod_ReturnsTotalIncome_WhenValidInput(t *testing.T) {
+	ctrl, mockRepo, useCase := setupTest(t)
+	defer ctrl.Finish()
+
+	ctx := context.Background()
+	mockRepo.EXPECT().GetIncomeForPeriod(ctx, int64(1), "2024-12-01", "2024-12-31").Return(1000.0, nil)
+
+	totalIncome, err := useCase.GetIncomeForPeriod(ctx, int64(1), "2024-12-01", "2024-12-31")
+
+	assert.NoError(t, err)
+	assert.Equal(t, 1000.0, totalIncome)
+}
+
+func Test_IncomeRepository_AddIncome_ReturnsError_WhenConnectionInvalid(t *testing.T) {
+	_, err := sql.Open("postgres",
+		"postgres://invalid_user:invalid_password@localhost:5434/invalid_db?sslmode=disable")
+
+	assert.Error(t, err)
+}
+
+func Test_IncomeUseCase_GetIncomeForPeriod_ReturnsError_WhenInvalidInput(t *testing.T) {
+	ctrl, mockRepo, useCase := setupTest(t)
+	defer ctrl.Finish()
+
+	ctx := context.Background()
+	mockRepo.EXPECT().GetIncomeForPeriod(ctx, int64(1), "invalid_date", "invalid_date").Return(float64(1), errors.New("invalid date"))
+
+	_, err := useCase.GetIncomeForPeriod(ctx, int64(1), "invalid_date", "invalid_date")
+
+	assert.Error(t, err)
+	assert.EqualError(t, err, "invalid date")
 }

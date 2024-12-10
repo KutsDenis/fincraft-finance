@@ -8,6 +8,7 @@ import "google/protobuf/empty.proto";
 
 service FinanceService {
   rpc AddIncome (AddIncomeRequest) returns (google.protobuf.Empty);
+  rpc GetIncomeForPeriod (GetIncomeForPeriodRequest) returns (GetIncomeForPeriodResponse);
 }
 
 message AddIncomeRequest {
@@ -15,4 +16,14 @@ message AddIncomeRequest {
   int32 category_id = 2;
   double amount = 3;
   string description = 4;
+}
+
+message GetIncomeForPeriodRequest {
+  int64 user_id = 1;
+  string start_date = 2; // User ISO 8601 format: YYYY-MM-DDTHH:MM:SSZ
+  string end_date = 3; // User ISO 8601 format: YYYY-MM-DDTHH:MM:SSZ
+}
+
+message GetIncomeForPeriodResponse {
+  double total_income = 1;
 }
