@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"time"
 
 	// Импортируем PostgreSQL-драйвер
 	_ "github.com/lib/pq"
@@ -87,5 +88,59 @@ func (p *UserParams) SeedUser(db *sql.DB) error {
 	if err != nil {
 		return err
 	}
+	return nil
+}
+
+// IncomeParams содержит параметры для создания тестового дохода.
+type IncomeParams struct {
+	UserID      int
+	CategoryID  int
+	Amount      float64
+	Description string
+	CreatedAt   time.Time
+}
+
+// SeedIncomes добавляет тестовые доходы.
+// Указание параметров необязательно.
+// Если указаны даты, то доходы будут добавлены на эти даты. Иначе - на текущую дату.
+func (p *IncomeParams) SeedIncomes(db *sql.DB, dates ...time.Time) error {
+	if p.UserID == 0 {
+		p.UserID = 1
+	}
+	if p.CategoryID == 0 {
+		p.CategoryID = 1
+	}
+	if p.Amount == 0 {
+		p.Amount = 100.50
+	}
+	if p.Description == "" {
+		p.Description = "test income"
+	}
+	if p.CreatedAt.IsZero() {
+		p.CreatedAt = time.Now()
+	}
+
+	const q = `
+		INSERT INTO incomes (user_id, category_id, amount, description, created_at)
+		VALUES ($1, $2, $3, $4, $5)
+	`
+
+	for _, date := range dates {
+		if date.IsZero() {
+			date = p.CreatedAt
+		}
+		_, err := db.Exec(q, p.UserID, p.CategoryID, p.Amount, p.Description, date)
+		if err != nil {
+			return err
+		}
+	}
+
+	if len(dates) == 0 {
+		_, err := db.Exec(q, p.UserID, p.CategoryID, p.Amount, p.Description, p.CreatedAt)
+		if err != nil {
+			return err
+		}
+	}
+
 	return nil
 }

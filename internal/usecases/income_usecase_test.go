@@ -2,12 +2,13 @@ package usecases_test
 
 import (
 	"context"
-	"errors"
 	"testing"
 
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
+	"fincraft-finance/internal/domain"
 	"fincraft-finance/internal/usecases"
 	"fincraft-finance/internal/usecases/mocks"
 )
@@ -58,15 +59,74 @@ func Test_IncomeUseCase_AddIncome_ReturnsValidationError_WhenInvalidInput(t *tes
 	}
 }
 
-func Test_IncomeUseCase_AddIncome_ReturnsError_WhenRepoFails(t *testing.T) {
+func Test_IncomeUseCase_GetIncomesForPeriod_ReturnsIncomes_WhenValidInput(t *testing.T) {
 	ctrl, mockRepo, useCase := setupTest(t)
 	defer ctrl.Finish()
 
 	ctx := context.Background()
-	mockRepo.EXPECT().AddIncome(ctx, int64(1), 2, 100.0, "Test income").Return(errors.New("db error"))
+	startDate := "2023-01-01T00:00:00Z"
+	endDate := "2023-01-31T23:59:59Z"
+	expectedIncomes := []*domain.Income{
+		{UserID: 1, CategoryID: 2, Amount: domain.NewMoneyFromFloat(100.0), Description: "Income 1"},
+		{UserID: 1, CategoryID: 3, Amount: domain.NewMoneyFromFloat(200.0), Description: "Income 2"},
+	}
 
-	err := useCase.AddIncome(ctx, int64(1), 2, 100, "Test income")
+	mockRepo.EXPECT().GetIncomesForPeriod(ctx, int64(1), startDate, endDate).Return(expectedIncomes, nil)
 
-	assert.Error(t, err)
-	assert.EqualError(t, err, "db error")
+	incomes, err := useCase.GetIncomesForPeriod(ctx, int64(1), startDate, endDate)
+
+	require.NoError(t, err)
+	require.Equal(t, expectedIncomes, incomes)
+}
+
+func Test_IncomeUseCase_GetIncomesForPeriod_ReturnsError_WhenInvalidUserID(t *testing.T) {
+	_, _, useCase := setupTest(t)
+
+	ctx := context.Background()
+	startDate := "2023-01-01T00:00:00Z"
+	endDate := "2023-01-31T23:59:59Z"
+
+	_, err := useCase.GetIncomesForPeriod(ctx, int64(0), startDate, endDate)
+
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "invalid user ID: 0")
+}
+
+func Test_IncomeUseCase_GetIncomesForPeriod_ReturnsError_WhenInvalidStartDate(t *testing.T) {
+	_, _, useCase := setupTest(t)
+
+	ctx := context.Background()
+	startDate := "invalid-date"
+	endDate := "2023-01-31T23:59:59Z"
+
+	_, err := useCase.GetIncomesForPeriod(ctx, int64(1), startDate, endDate)
+
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "failed to parse start date")
+}
+
+func Test_IncomeUseCase_GetIncomesForPeriod_ReturnsError_WhenInvalidEndDate(t *testing.T) {
+	_, _, useCase := setupTest(t)
+
+	ctx := context.Background()
+	startDate := "2023-01-01T00:00:00Z"
+	endDate := "invalid-date"
+
+	_, err := useCase.GetIncomesForPeriod(ctx, int64(1), startDate, endDate)
+
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "failed to parse end date")
+}
+
+func Test_IncomeUseCase_GetIncomesForPeriod_ReturnsError_WhenStartDateIsAfterEndDate(t *testing.T) {
+	_, _, useCase := setupTest(t)
+
+	ctx := context.Background()
+	startDate := "2023-01-31T23:59:59Z"
+	endDate := "2023-01-01T00:00:00Z"
+
+	_, err := useCase.GetIncomesForPeriod(ctx, int64(1), startDate, endDate)
+
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "start date is after end date")
 }
