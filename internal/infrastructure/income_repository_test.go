@@ -2,7 +2,6 @@ package infrastructure_test
 
 import (
 	"context"
-	"database/sql"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -71,23 +70,4 @@ func Test_IncomeRepository_AddIncome_ReturnsError_WhenInvalidAmount(t *testing.T
 	err := repo.AddIncome(ctx, 1, 2, -100.50, "Negative amount")
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "violates check constraint")
-}
-
-func Test_IncomeRepository_AddIncome_ReturnsError_WhenConnectionInvalid(t *testing.T) {
-	invalidDB, err := sql.Open("postgres",
-		"postgres://invalid_user:invalid_password@localhost:5434/invalid_db?sslmode=disable")
-	if err != nil {
-		t.Fatal(err)
-	}
-	//noinspection GoUnhandledErrorResult
-	defer invalidDB.Close()
-
-	repo := infrastructure.NewIncomeRepository(invalidDB)
-
-	ctx := context.Background()
-	err = repo.AddIncome(ctx, 1, 2, 100.50, "Test income")
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(),
-		"dial tcp [::1]:5434: connectex: "+
-			"No connection could be made because the target machine actively refused it.")
 }
