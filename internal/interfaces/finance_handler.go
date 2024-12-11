@@ -2,6 +2,8 @@ package interfaces
 
 import (
 	"context"
+	"strings"
+	"time"
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -30,4 +32,30 @@ func (h *FinanceHandler) AddIncome(ctx context.Context, req *finance.AddIncomeRe
 	}
 
 	return &emptypb.Empty{}, nil
+}
+
+// GetIncomesForPeriod возвращает список доходов за указанный период
+func (h *FinanceHandler) GetIncomesForPeriod(ctx context.Context, req *finance.GetIncomesForPeriodRequest) (*finance.GetIncomesForPeriodResponse, error) {
+	incomes, err := h.usecase.GetIncomesForPeriod(ctx, req.UserId, req.StartDate.AsTime().Format(time.RFC3339), req.EndDate.AsTime().Format(time.RFC3339))
+	if err != nil {
+		if strings.Contains(err.Error(), "validation failed") {
+			return nil, status.Error(codes.InvalidArgument, err.Error())
+		}
+		if strings.Contains(err.Error(), "does not exist") {
+			return nil, status.Error(codes.NotFound, err.Error())
+		}
+		return nil, status.Errorf(codes.Internal, "failed to get incomes: %v", err)
+	}
+
+	var incomeResponses []*finance.Income
+	for _, income := range incomes {
+		incomeResponses = append(incomeResponses, &finance.Income{
+			UserId:      income.UserID,
+			CategoryId:  int32(income.CategoryID),
+			Amount:      income.Amount.ToFloat(),
+			Description: income.Description,
+		})
+	}
+
+	return &finance.GetIncomesForPeriodResponse{Incomes: incomeResponses}, nil
 }

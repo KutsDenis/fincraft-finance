@@ -3,6 +3,7 @@ package infrastructure
 import (
 	"context"
 	"database/sql"
+	"fincraft-finance/internal/domain"
 )
 
 // IncomeRepository реализует методы для работы с доходами
@@ -22,4 +23,31 @@ func (r *IncomeRepository) AddIncome(ctx context.Context, userID int64, category
 	`, userID, categoryID, amount, description)
 
 	return err
+}
+
+// GetIncomesForPeriod возвращает список доходов за указанный период
+func (r *IncomeRepository) GetIncomesForPeriod(ctx context.Context, userID int64, startDate, endDate string) ([]*domain.Income, error) {
+	rows, err := r.db.QueryContext(ctx, `
+		SELECT * FROM get_incomes_for_period($1, $2, $3)
+	`, userID, startDate, endDate)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	incomes := []*domain.Income{}
+	var amount float64
+	for rows.Next() {
+		var income domain.Income
+		if err := rows.Scan(&income.UserID, &income.CategoryID, &amount, &income.Description); err != nil {
+			return nil, err
+		}
+		income.Amount = domain.NewMoneyFromFloat(amount)
+		incomes = append(incomes, &income)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return incomes, nil
 }
