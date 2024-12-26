@@ -3,6 +3,9 @@ package infrastructure
 import (
 	"context"
 	"database/sql"
+	"fmt"
+	"time"
+
 	"fincraft-finance/internal/domain"
 )
 
@@ -22,32 +25,33 @@ func (r *IncomeRepository) AddIncome(ctx context.Context, userID int64, category
 		SELECT * FROM add_income($1, $2, $3, $4)
 	`, userID, categoryID, amount, description)
 
-	return err
+	return fmt.Errorf("income.Repo.AddIncome: %w", err)
 }
 
 // GetIncomesForPeriod возвращает список доходов за указанный период
-func (r *IncomeRepository) GetIncomesForPeriod(ctx context.Context, userID int64, startDate, endDate string) ([]*domain.Income, error) {
+func (r *IncomeRepository) GetIncomesForPeriod(ctx context.Context, userID int64, startDate, endDate time.Time) ([]domain.Income, error) {
 	rows, err := r.db.QueryContext(ctx, `
 		SELECT * FROM get_incomes_for_period($1, $2, $3)
 	`, userID, startDate, endDate)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("income.Repo.GetIncomesForPeriod: %w", err)
 	}
+	//noinspection GoUnhandledErrorResult
 	defer rows.Close()
 
-	incomes := []*domain.Income{}
+	var incomes []domain.Income
 	var amount float64
 	for rows.Next() {
 		var income domain.Income
-		if err := rows.Scan(&income.UserID, &income.CategoryID, &amount, &income.Description); err != nil {
+		if err := rows.Scan(&income.CategoryID, &amount, &income.Description); err != nil {
 			return nil, err
 		}
 		income.Amount = domain.NewMoneyFromFloat(amount)
-		incomes = append(incomes, &income)
+		incomes = append(incomes, income)
 	}
 
 	if err := rows.Err(); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("income.Repo.GetIncomesForPeriod: %w", err)
 	}
 	return incomes, nil
 }

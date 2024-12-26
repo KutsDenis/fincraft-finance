@@ -2,6 +2,7 @@ package infrastructure_test
 
 import (
 	"context"
+	"fincraft-finance/internal/domain"
 	"testing"
 	"time"
 
@@ -27,27 +28,19 @@ func seedDefaultUser(t *testing.T) {
 	require.NoError(t, err)
 }
 
-// seedUsersAndIncomes создает пользователей и добавляет доходы в базу данных
-func seedUsersAndIncomes(t *testing.T, now time.Time) {
-	user := testdb.UserParams{ID: 1}
+// seedUserIncomes создает пользователей и добавляет доходы в базу данных
+func seedUserIncomes(t *testing.T, income domain.Income, incomesCount int) {
+	user := testdb.UserParams{ID: int(income.UserID)}
 	err := user.SeedUser(testdb.DB)
 	require.NoError(t, err)
 
-	// user 2
-	user = testdb.UserParams{ID: 2, Email: "test2@test.com"}
-	err = user.SeedUser(testdb.DB)
-	require.NoError(t, err)
+	repo := infrastructure.NewIncomeRepository(testdb.DB)
+	ctx := context.Background()
 
-	income := testdb.IncomeParams{UserID: 1, CreatedAt: now}
-
-	// user 1 with 4 incomes
-	err = income.SeedIncomes(testdb.DB, now, now.Add(time.Hour), now.Add(2*time.Hour), now.Add(3*time.Hour))
-	require.NoError(t, err)
-
-	// user 2 with 4 incomes
-	income = testdb.IncomeParams{UserID: 2, Amount: 20.99}
-	err = income.SeedIncomes(testdb.DB, now, now.Add(time.Hour), now.Add(2*time.Hour), now.Add(3*time.Hour))
-	require.NoError(t, err)
+	for i := 0; i < incomesCount; i++ {
+		err = repo.AddIncome(ctx, income.UserID, income.CategoryID, income.Amount.ToFloat(), income.Description)
+		require.NoError(t, err)
+	}
 }
 
 func Test_IncomeRepository_AddIncome_ReturnsNoError_WhenValidInput(t *testing.T) {
@@ -96,30 +89,74 @@ func Test_IncomeRepository_AddIncome_ReturnsError_WhenInvalidAmount(t *testing.T
 	assert.Contains(t, err.Error(), "violates check constraint")
 }
 
-func Test_IncomeRepository_GetIncomesForPeriod_ReturnsSliceOfIncomes_WhenValidInput(t *testing.T) {
+func Test_IncomeRepository_GetIncomesForPeriod_ReturnsIncomes_WhenValidInput(t *testing.T) {
 	defer func() {
 		if err := testdb.TruncateTables(testdb.DB, testdb.UsersTable, testdb.IncomesTable); err != nil {
 			t.Fatal(err)
 		}
 	}()
 
-	now := time.Now()
-	seedUsersAndIncomes(t, now)
+	userID := int64(1)
+	incomesCount := 4
+	categoryID := 1
+	amount := 100.50
+
+	seedUserIncomes(t, domain.Income{
+		UserID:      userID,
+		CategoryID:  categoryID,
+		Amount:      domain.NewMoneyFromFloat(amount),
+		Description: "test income",
+	}, incomesCount)
+
 	repo := infrastructure.NewIncomeRepository(testdb.DB)
-
 	ctx := context.Background()
-	startTime := now.Format(time.RFC3339)
-	endDate := now.Add(3 * time.Hour).Format(time.RFC3339)
-	incomes, err := repo.GetIncomesForPeriod(ctx, 1, startTime, endDate)
 
+	startTime := time.Now()
+	endTime := startTime.Add(3 * time.Hour)
+	incomes, err := repo.GetIncomesForPeriod(ctx, userID, startTime, endTime)
 	require.NoError(t, err)
-	assert.Len(t, incomes, 3)
 
-	assert.Equal(t, incomes[0].UserID, int64(1))
-	assert.Equal(t, incomes[1].UserID, int64(1))
-	assert.Equal(t, incomes[2].UserID, int64(1))
+	assert.Len(t, incomes, incomesCount)
+	for _, income := range incomes {
+		assert.Equal(t, income.UserID, userID)
+		assert.Equal(t, income.CategoryID, categoryID)
+		assert.Equal(t, income.Amount.ToFloat(), amount)
+	}
+}
 
-	assert.Equal(t, incomes[0].Amount.ToFloat(), 100.50)
+func Test_IncomeRepository_GetIncomesForPeriod_ReturnsIncomes_WhenValidInputAndAnotherUser(t *testing.T) {
+	defer func() {
+		if err := testdb.TruncateTables(testdb.DB, testdb.UsersTable, testdb.IncomesTable); err != nil {
+			t.Fatal(err)
+		}
+	}()
+
+	userID := int64(2)
+	incomesCount := 3
+	categoryID := 1
+	amount := 20.99
+
+	seedUserIncomes(t, domain.Income{
+		UserID:      userID,
+		CategoryID:  categoryID,
+		Amount:      domain.NewMoneyFromFloat(amount),
+		Description: "test income",
+	}, incomesCount)
+
+	repo := infrastructure.NewIncomeRepository(testdb.DB)
+	ctx := context.Background()
+
+	startTime := time.Now()
+	endTime := startTime.Add(1 * time.Hour)
+	incomes, err := repo.GetIncomesForPeriod(ctx, userID, startTime, endTime)
+	require.NoError(t, err)
+
+	assert.Len(t, incomes, incomesCount)
+	for _, income := range incomes {
+		assert.Equal(t, income.UserID, userID)
+		assert.Equal(t, income.CategoryID, categoryID)
+		assert.Equal(t, income.Amount.ToFloat(), amount)
+	}
 }
 
 func Test_IncomeRepository_GetIncomesForPeriod_ReturnsError_WhenInvalidUserID(t *testing.T) {
@@ -129,14 +166,24 @@ func Test_IncomeRepository_GetIncomesForPeriod_ReturnsError_WhenInvalidUserID(t 
 		}
 	}()
 
-	now := time.Now()
-	seedUsersAndIncomes(t, now)
-	repo := infrastructure.NewIncomeRepository(testdb.DB)
+	userID := int64(999)
+	incomesCount := 1
+	categoryID := 1
+	amount := 20.99
 
+	seedUserIncomes(t, domain.Income{
+		UserID:      userID,
+		CategoryID:  categoryID,
+		Amount:      domain.NewMoneyFromFloat(amount),
+		Description: "test income",
+	}, incomesCount)
+
+	repo := infrastructure.NewIncomeRepository(testdb.DB)
 	ctx := context.Background()
-	startTime := now.Format(time.RFC3339)
-	endDate := now.Add(3 * time.Hour).Format(time.RFC3339)
-	_, err := repo.GetIncomesForPeriod(ctx, 999, startTime, endDate)
+
+	startTime := time.Now()
+	endTime := startTime.Add(1 * time.Hour)
+	_, err := repo.GetIncomesForPeriod(ctx, userID, startTime, endTime)
 
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "does not exist")
@@ -149,14 +196,50 @@ func Test_IncomeRepository_GetIncomesForPeriod_ReturnsError_WhenInvalidDates(t *
 		}
 	}()
 
-	seedUsersAndIncomes(t, time.Now())
+	userID := int64(1)
+	incomesCount := 1
+	categoryID := 1
+	amount := 20.99
+
+	seedUserIncomes(t, domain.Income{
+		UserID:      userID,
+		CategoryID:  categoryID,
+		Amount:      domain.NewMoneyFromFloat(amount),
+		Description: "test income",
+	}, incomesCount)
+
 	repo := infrastructure.NewIncomeRepository(testdb.DB)
-
 	ctx := context.Background()
-	_, err := repo.GetIncomesForPeriod(ctx, 1, "invalid date", "invalid date")
 
-	require.Error(t, err)
-	assert.Error(t, err, "invalid input syntax for type timestamp")
+	testCases := []struct {
+		name      string
+		startTime time.Time
+		endTime   time.Time
+	}{
+		{
+			name:      "end_date_one_day_before_start",
+			startTime: time.Date(2024, 12, 26, 0, 0, 0, 0, time.UTC),
+			endTime:   time.Date(2024, 12, 25, 0, 0, 0, 0, time.UTC),
+		},
+		{
+			name:      "end_date_one_hour_before_start",
+			startTime: time.Now(),
+			endTime:   time.Now().Add(-1 * time.Hour),
+		},
+		{
+			name:      "end_date_one_minute_before_start",
+			startTime: time.Now(),
+			endTime:   time.Now().Add(-1 * time.Minute),
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := repo.GetIncomesForPeriod(ctx, userID, tc.startTime, tc.endTime)
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), "End date cannot be before start date")
+		})
+	}
 }
 
 func Test_IncomeRepository_GetIncomesForPeriod_ReturnsEmptySlice_WhenNoIncomes(t *testing.T) {
@@ -166,41 +249,14 @@ func Test_IncomeRepository_GetIncomesForPeriod_ReturnsEmptySlice_WhenNoIncomes(t
 		}
 	}()
 
-	now := time.Now()
 	seedDefaultUser(t)
 	repo := infrastructure.NewIncomeRepository(testdb.DB)
 
 	ctx := context.Background()
-	startTime := now.Format(time.RFC3339)
-	endDate := now.Add(3 * time.Hour).Format(time.RFC3339)
-	incomes, err := repo.GetIncomesForPeriod(ctx, 1, startTime, endDate)
+	startTime := time.Now()
+	endTime := startTime.Add(3 * time.Hour)
+	incomes, err := repo.GetIncomesForPeriod(ctx, 1, startTime, endTime)
 
 	require.NoError(t, err)
 	assert.Empty(t, incomes)
-}
-
-func Test_IncomeRepository_GetIncomesForPeriod_ReturnsIncomesForDifferentUsers(t *testing.T) {
-	defer func() {
-		if err := testdb.TruncateTables(testdb.DB, testdb.UsersTable, testdb.IncomesTable); err != nil {
-			t.Fatal(err)
-		}
-	}()
-
-	now := time.Now()
-	seedUsersAndIncomes(t, now)
-	repo := infrastructure.NewIncomeRepository(testdb.DB)
-
-	ctx := context.Background()
-	startTime := now.Format(time.RFC3339)
-	endDate := now.Add(3 * time.Hour).Format(time.RFC3339)
-	incomes, err := repo.GetIncomesForPeriod(ctx, 2, startTime, endDate)
-
-	require.NoError(t, err)
-	assert.Len(t, incomes, 3)
-
-	assert.Equal(t, incomes[0].UserID, int64(2))
-	assert.Equal(t, incomes[1].UserID, int64(2))
-	assert.Equal(t, incomes[2].UserID, int64(2))
-
-	assert.Equal(t, incomes[0].Amount.ToFloat(), 20.99)
 }

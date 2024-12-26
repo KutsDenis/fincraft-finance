@@ -30,8 +30,7 @@ message GetIncomesForPeriodResponse {
 }
 
 message Income {
-  int64 user_id = 1;
-  int32 category_id = 2;
-  double amount = 3;
-  string description = 4;
+  int32 category_id = 1;
+  int64 amount = 2;
+  string description = 3;
 }

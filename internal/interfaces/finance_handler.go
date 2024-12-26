@@ -2,14 +2,13 @@ package interfaces
 
 import (
 	"context"
-	"strings"
-	"time"
-
+	"errors"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/emptypb"
 
 	"fincraft-finance/api/finance"
+	"fincraft-finance/internal/domain"
 	"fincraft-finance/internal/usecases"
 )
 
@@ -36,26 +35,32 @@ func (h *FinanceHandler) AddIncome(ctx context.Context, req *finance.AddIncomeRe
 
 // GetIncomesForPeriod возвращает список доходов за указанный период
 func (h *FinanceHandler) GetIncomesForPeriod(ctx context.Context, req *finance.GetIncomesForPeriodRequest) (*finance.GetIncomesForPeriodResponse, error) {
-	incomes, err := h.usecase.GetIncomesForPeriod(ctx, req.UserId, req.StartDate.AsTime().Format(time.RFC3339), req.EndDate.AsTime().Format(time.RFC3339))
+	incomes, err := h.usecase.GetIncomesForPeriod(ctx, req.UserId, req.StartDate.AsTime(), req.EndDate.AsTime())
 	if err != nil {
-		if strings.Contains(err.Error(), "validation failed") {
-			return nil, status.Error(codes.InvalidArgument, err.Error())
+		var validationErr *usecases.ValidationError
+		var notFoundErr *usecases.NotFoundError
+
+		if errors.As(err, &validationErr) {
+			return nil, status.Error(codes.InvalidArgument, validationErr.Error())
 		}
-		if strings.Contains(err.Error(), "does not exist") {
-			return nil, status.Error(codes.NotFound, err.Error())
+		if errors.As(err, &notFoundErr) {
+			return nil, status.Error(codes.NotFound, notFoundErr.Error())
 		}
 		return nil, status.Errorf(codes.Internal, "failed to get incomes: %v", err)
 	}
 
-	var incomeResponses []*finance.Income
+	return &finance.GetIncomesForPeriodResponse{Incomes: mapIncomes(incomes)}, nil
+}
+
+func mapIncomes(incomes []domain.Income) []*finance.Income {
+	incomeResponses := make([]*finance.Income, 0, len(incomes))
 	for _, income := range incomes {
 		incomeResponses = append(incomeResponses, &finance.Income{
-			UserId:      income.UserID,
 			CategoryId:  int32(income.CategoryID),
-			Amount:      income.Amount.ToFloat(),
+			Amount:      int64(income.Amount),
 			Description: income.Description,
 		})
-	}
 
-	return &finance.GetIncomesForPeriodResponse{Incomes: incomeResponses}, nil
+	}
+	return incomeResponses
 }
