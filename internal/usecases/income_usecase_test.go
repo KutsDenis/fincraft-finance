@@ -3,6 +3,7 @@ package usecases_test
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
@@ -59,14 +60,18 @@ func Test_IncomeUseCase_AddIncome_ReturnsValidationError_WhenInvalidInput(t *tes
 	}
 }
 
+var (
+	testTime = time.Date(2024, 12, 26, 23, 49, 37, 0, time.UTC)
+)
+
 func Test_IncomeUseCase_GetIncomesForPeriod_ReturnsIncomes_WhenValidInput(t *testing.T) {
 	ctrl, mockRepo, useCase := setupTest(t)
 	defer ctrl.Finish()
 
 	ctx := context.Background()
-	startDate := "2023-01-01T00:00:00Z"
-	endDate := "2023-01-31T23:59:59Z"
-	expectedIncomes := []*domain.Income{
+	startDate := testTime
+	endDate := testTime
+	expectedIncomes := []domain.Income{
 		{UserID: 1, CategoryID: 2, Amount: domain.NewMoneyFromFloat(100.0), Description: "Income 1"},
 		{UserID: 1, CategoryID: 3, Amount: domain.NewMoneyFromFloat(200.0), Description: "Income 2"},
 	}
@@ -83,8 +88,8 @@ func Test_IncomeUseCase_GetIncomesForPeriod_ReturnsError_WhenInvalidUserID(t *te
 	_, _, useCase := setupTest(t)
 
 	ctx := context.Background()
-	startDate := "2023-01-01T00:00:00Z"
-	endDate := "2023-01-31T23:59:59Z"
+	startDate := testTime
+	endDate := testTime
 
 	_, err := useCase.GetIncomesForPeriod(ctx, int64(0), startDate, endDate)
 
@@ -96,21 +101,21 @@ func Test_IncomeUseCase_GetIncomesForPeriod_ReturnsError_WhenInvalidStartDate(t 
 	_, _, useCase := setupTest(t)
 
 	ctx := context.Background()
-	startDate := "invalid-date"
-	endDate := "2023-01-31T23:59:59Z"
+	startDate := time.Unix(0, 0)
+	endDate := testTime
 
 	_, err := useCase.GetIncomesForPeriod(ctx, int64(1), startDate, endDate)
 
 	require.Error(t, err)
-	require.Contains(t, err.Error(), "failed to parse start date")
+	require.Contains(t, err.Error(), "invalid start time")
 }
 
 func Test_IncomeUseCase_GetIncomesForPeriod_ReturnsError_WhenInvalidEndDate(t *testing.T) {
 	_, _, useCase := setupTest(t)
 
 	ctx := context.Background()
-	startDate := "2023-01-01T00:00:00Z"
-	endDate := "invalid-date"
+	startDate := testTime
+	endDate := testTime
 
 	_, err := useCase.GetIncomesForPeriod(ctx, int64(1), startDate, endDate)
 
@@ -122,8 +127,8 @@ func Test_IncomeUseCase_GetIncomesForPeriod_ReturnsError_WhenStartDateIsAfterEnd
 	_, _, useCase := setupTest(t)
 
 	ctx := context.Background()
-	startDate := "2023-01-31T23:59:59Z"
-	endDate := "2023-01-01T00:00:00Z"
+	startDate := testTime
+	endDate := testTime
 
 	_, err := useCase.GetIncomesForPeriod(ctx, int64(1), startDate, endDate)
 

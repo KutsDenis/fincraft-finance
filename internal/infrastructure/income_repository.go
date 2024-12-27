@@ -25,7 +25,11 @@ func (r *IncomeRepository) AddIncome(ctx context.Context, userID int64, category
 		SELECT * FROM add_income($1, $2, $3, $4)
 	`, userID, categoryID, amount, description)
 
-	return fmt.Errorf("income.Repo.AddIncome: %w", err)
+	if err != nil {
+		return fmt.Errorf("income.Repo.AddIncome: %w", err)
+	}
+
+	return nil
 }
 
 // GetIncomesForPeriod возвращает список доходов за указанный период
@@ -39,13 +43,14 @@ func (r *IncomeRepository) GetIncomesForPeriod(ctx context.Context, userID int64
 	//noinspection GoUnhandledErrorResult
 	defer rows.Close()
 
-	var incomes []domain.Income
+	incomes := make([]domain.Income, 0)
 	var amount float64
 	for rows.Next() {
 		var income domain.Income
 		if err := rows.Scan(&income.CategoryID, &amount, &income.Description); err != nil {
 			return nil, err
 		}
+		income.UserID = userID
 		income.Amount = domain.NewMoneyFromFloat(amount)
 		incomes = append(incomes, income)
 	}
@@ -53,5 +58,6 @@ func (r *IncomeRepository) GetIncomesForPeriod(ctx context.Context, userID int64
 	if err := rows.Err(); err != nil {
 		return nil, fmt.Errorf("income.Repo.GetIncomesForPeriod: %w", err)
 	}
+
 	return incomes, nil
 }

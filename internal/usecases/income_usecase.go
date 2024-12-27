@@ -49,11 +49,13 @@ func (u *IncomeUseCase) GetIncomesForPeriod(ctx context.Context, userID int64, s
 	}
 
 	incomes, err := u.repo.GetIncomesForPeriod(ctx, userID, startDate, endDate)
-	if len(incomes) == 0 {
-		return nil, &NotFoundError{Entity: "Incomes"}
-	}
+
 	if err != nil {
 		return nil, err
+	}
+
+	if len(incomes) == 0 {
+		return nil, NewNotFoundError("incomes")
 	}
 
 	return incomes, nil
@@ -61,19 +63,23 @@ func (u *IncomeUseCase) GetIncomesForPeriod(ctx context.Context, userID int64, s
 
 func validateGetIncomesForPeriodInput(userID int64, startTime, endTime time.Time) error {
 	if userID <= 0 {
-		return &ValidationError{Message: fmt.Sprintf("invalid user ID: %d", userID)}
+		return NewValidationError(
+			fmt.Sprintf("invalid user ID: %d", userID))
 	}
 
 	if startTime.IsZero() {
-		return &ValidationError{Message: "start time cannot be zero"}
+		return NewValidationError(
+			fmt.Sprintf("invalid start time: %s", startTime))
 	}
 
 	if endTime.IsZero() {
-		return &ValidationError{Message: "end time cannot be zero"}
+		return NewValidationError(
+			fmt.Sprintf("invalid end time: %s", endTime))
 	}
 
 	if startTime.After(endTime) {
-		return &ValidationError{Message: "start time must be before end time"}
+		return NewValidationError(
+			fmt.Sprintf("start time must be before end time"))
 	}
 
 	return nil

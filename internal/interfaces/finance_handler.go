@@ -37,14 +37,11 @@ func (h *FinanceHandler) AddIncome(ctx context.Context, req *finance.AddIncomeRe
 func (h *FinanceHandler) GetIncomesForPeriod(ctx context.Context, req *finance.GetIncomesForPeriodRequest) (*finance.GetIncomesForPeriodResponse, error) {
 	incomes, err := h.usecase.GetIncomesForPeriod(ctx, req.UserId, req.StartDate.AsTime(), req.EndDate.AsTime())
 	if err != nil {
-		var validationErr *usecases.ValidationError
-		var notFoundErr *usecases.NotFoundError
-
-		if errors.As(err, &validationErr) {
-			return nil, status.Error(codes.InvalidArgument, validationErr.Error())
+		if errors.Is(err, usecases.ValidationError) {
+			return nil, status.Error(codes.InvalidArgument, err.Error())
 		}
-		if errors.As(err, &notFoundErr) {
-			return nil, status.Error(codes.NotFound, notFoundErr.Error())
+		if errors.Is(err, usecases.NotFoundError) {
+			return nil, status.Error(codes.NotFound, err.Error())
 		}
 		return nil, status.Errorf(codes.Internal, "failed to get incomes: %v", err)
 	}

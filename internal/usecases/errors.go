@@ -1,21 +1,21 @@
 package usecases
 
-import "fmt"
+import (
+	"errors"
+	"fmt"
+)
 
-// ValidationError представляет ошибку неверного входного значения, сбоя проверки данных или отсутствия определённых полей
-type ValidationError struct {
-	Message string
+var (
+	// ValidationError представляет ошибку неверного входного значения, сбоя проверки данных или отсутствия определённых полей
+	ValidationError = errors.New("validation error")
+	// NotFoundError представляет ошибку, возникающую, если данные не найдены
+	NotFoundError = errors.New("not found error")
+)
+
+func NewValidationError(msg string) error {
+	return fmt.Errorf("%w: %s", ValidationError, msg)
 }
 
-func (e *ValidationError) Error() string {
-	return fmt.Sprintf("validation error: %s", e.Message)
-}
-
-// NotFoundError представляет ошибку, возникающую, если данные не найдены
-type NotFoundError struct {
-	Entity string
-}
-
-func (e *NotFoundError) Error() string {
-	return fmt.Sprintf("%s not found", e.Entity)
+func NewNotFoundError(entity string) error {
+	return fmt.Errorf("%w: %s", NotFoundError, entity)
 }

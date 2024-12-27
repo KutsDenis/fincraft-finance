@@ -113,8 +113,8 @@ func Test_FinanceHandler_GetIncomesForPeriod_ReturnsSliceOfIncomes_WhenValidInpu
 	}
 
 	expectedIncomes := []*finance.Income{
-		{UserId: 1, CategoryId: 2, Amount: 100.0, Description: "Income 1"},
-		{UserId: 1, CategoryId: 3, Amount: 200.0, Description: "Income 2"},
+		{CategoryId: 2, Amount: 100.0, Description: "Income 1"},
+		{CategoryId: 3, Amount: 200.0, Description: "Income 2"},
 	}
 
 	ctx := context.Background()

@@ -43,6 +43,10 @@ func seedUserIncomes(t *testing.T, income domain.Income, incomesCount int) {
 	}
 }
 
+func setupTestTime() time.Time {
+	return time.Now().UTC()
+}
+
 func Test_IncomeRepository_AddIncome_ReturnsNoError_WhenValidInput(t *testing.T) {
 	defer func() {
 		if err := testdb.TruncateTables(testdb.DB, testdb.UsersTable, testdb.IncomesTable); err != nil {
@@ -90,6 +94,76 @@ func Test_IncomeRepository_AddIncome_ReturnsError_WhenInvalidAmount(t *testing.T
 }
 
 func Test_IncomeRepository_GetIncomesForPeriod_ReturnsIncomes_WhenValidInput(t *testing.T) {
+	testCases := []struct {
+		name         string
+		userID       int64
+		incomesCount int
+		categoryID   int
+		amount       float64
+		description  string
+	}{
+		{
+			name:         "returns_incomes_when_valid_input",
+			userID:       1,
+			incomesCount: 4,
+			categoryID:   1,
+			amount:       100.50,
+			description:  "test income",
+		},
+		{
+			name:         "returns_incomes_for_another_user",
+			userID:       2,
+			incomesCount: 3,
+			categoryID:   1,
+			amount:       20.99,
+			description:  "test income",
+		},
+		{
+			name:         "returns_incomes_for_large_amount",
+			userID:       3,
+			incomesCount: 5,
+			categoryID:   1,
+			amount:       1000.00,
+			description:  "test income large amount",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			defer func() {
+				if err := testdb.TruncateTables(testdb.DB, testdb.UsersTable, testdb.IncomesTable); err != nil {
+					t.Fatal(err)
+				}
+			}()
+
+			startTime := setupTestTime()
+
+			seedUserIncomes(t, domain.Income{
+				UserID:      tc.userID,
+				CategoryID:  tc.categoryID,
+				Amount:      domain.NewMoneyFromFloat(tc.amount),
+				Description: tc.description,
+			}, tc.incomesCount)
+
+			endTime := setupTestTime()
+
+			repo := infrastructure.NewIncomeRepository(testdb.DB)
+			ctx := context.Background()
+
+			incomes, err := repo.GetIncomesForPeriod(ctx, tc.userID, startTime, endTime)
+
+			require.NoError(t, err)
+			require.Len(t, incomes, tc.incomesCount)
+			for _, income := range incomes {
+				assert.Equal(t, tc.userID, income.UserID)
+				assert.Equal(t, tc.categoryID, income.CategoryID)
+				assert.Equal(t, tc.amount, income.Amount.ToFloat())
+				assert.Equal(t, tc.description, income.Description)
+			}
+		})
+	}
+}
+func Test_IncomeRepository_GetIncomesForPeriod_ReturnsEmptyIncomes_WhenNoIncomesInPeriod(t *testing.T) {
 	defer func() {
 		if err := testdb.TruncateTables(testdb.DB, testdb.UsersTable, testdb.IncomesTable); err != nil {
 			t.Fatal(err)
@@ -97,76 +171,6 @@ func Test_IncomeRepository_GetIncomesForPeriod_ReturnsIncomes_WhenValidInput(t *
 	}()
 
 	userID := int64(1)
-	incomesCount := 4
-	categoryID := 1
-	amount := 100.50
-
-	seedUserIncomes(t, domain.Income{
-		UserID:      userID,
-		CategoryID:  categoryID,
-		Amount:      domain.NewMoneyFromFloat(amount),
-		Description: "test income",
-	}, incomesCount)
-
-	repo := infrastructure.NewIncomeRepository(testdb.DB)
-	ctx := context.Background()
-
-	startTime := time.Now()
-	endTime := startTime.Add(3 * time.Hour)
-	incomes, err := repo.GetIncomesForPeriod(ctx, userID, startTime, endTime)
-	require.NoError(t, err)
-
-	assert.Len(t, incomes, incomesCount)
-	for _, income := range incomes {
-		assert.Equal(t, income.UserID, userID)
-		assert.Equal(t, income.CategoryID, categoryID)
-		assert.Equal(t, income.Amount.ToFloat(), amount)
-	}
-}
-
-func Test_IncomeRepository_GetIncomesForPeriod_ReturnsIncomes_WhenValidInputAndAnotherUser(t *testing.T) {
-	defer func() {
-		if err := testdb.TruncateTables(testdb.DB, testdb.UsersTable, testdb.IncomesTable); err != nil {
-			t.Fatal(err)
-		}
-	}()
-
-	userID := int64(2)
-	incomesCount := 3
-	categoryID := 1
-	amount := 20.99
-
-	seedUserIncomes(t, domain.Income{
-		UserID:      userID,
-		CategoryID:  categoryID,
-		Amount:      domain.NewMoneyFromFloat(amount),
-		Description: "test income",
-	}, incomesCount)
-
-	repo := infrastructure.NewIncomeRepository(testdb.DB)
-	ctx := context.Background()
-
-	startTime := time.Now()
-	endTime := startTime.Add(1 * time.Hour)
-	incomes, err := repo.GetIncomesForPeriod(ctx, userID, startTime, endTime)
-	require.NoError(t, err)
-
-	assert.Len(t, incomes, incomesCount)
-	for _, income := range incomes {
-		assert.Equal(t, income.UserID, userID)
-		assert.Equal(t, income.CategoryID, categoryID)
-		assert.Equal(t, income.Amount.ToFloat(), amount)
-	}
-}
-
-func Test_IncomeRepository_GetIncomesForPeriod_ReturnsError_WhenInvalidUserID(t *testing.T) {
-	defer func() {
-		if err := testdb.TruncateTables(testdb.DB, testdb.UsersTable, testdb.IncomesTable); err != nil {
-			t.Fatal(err)
-		}
-	}()
-
-	userID := int64(999)
 	incomesCount := 1
 	categoryID := 1
 	amount := 20.99
@@ -178,15 +182,122 @@ func Test_IncomeRepository_GetIncomesForPeriod_ReturnsError_WhenInvalidUserID(t 
 		Description: "test income",
 	}, incomesCount)
 
+	startTime := setupTestTime().Add(-2 * time.Hour)
+	endTime := setupTestTime().Add(-1 * time.Hour)
 	repo := infrastructure.NewIncomeRepository(testdb.DB)
 	ctx := context.Background()
 
-	startTime := time.Now()
-	endTime := startTime.Add(1 * time.Hour)
-	_, err := repo.GetIncomesForPeriod(ctx, userID, startTime, endTime)
+	incomes, err := repo.GetIncomesForPeriod(ctx, userID, startTime, endTime)
+
+	require.NoError(t, err)
+	assert.Len(t, incomes, 0)
+	assert.NotNil(t, incomes)
+	assert.Empty(t, incomes)
+
+}
+func Test_IncomeRepository_GetIncomesForPeriod_ReturnsPartialIncomes_WhenSomeIncomesInPeriod(t *testing.T) {
+	defer func() {
+		if err := testdb.TruncateTables(testdb.DB, testdb.UsersTable, testdb.IncomesTable); err != nil {
+			t.Fatal(err)
+		}
+	}()
+
+	userID := int64(1)
+	categoryID := 1
+	amount := 20.99
+	targetIncomesCount := 3
+
+	user := testdb.UserParams{ID: int(userID)}
+	err := user.SeedUser(testdb.DB)
+	require.NoError(t, err)
+
+	repo := infrastructure.NewIncomeRepository(testdb.DB)
+	ctx := context.Background()
+
+	// Create old incomes (outside target period)
+	for i := 0; i < 2; i++ {
+		err = repo.AddIncome(ctx, userID, categoryID, amount, "old test income")
+		require.NoError(t, err)
+	}
+
+	startTime := setupTestTime()
+	// Create target period incomes
+	for i := 0; i < targetIncomesCount; i++ {
+		err = repo.AddIncome(ctx, userID, categoryID, amount, "target test income")
+		require.NoError(t, err)
+	}
+	endTime := setupTestTime()
+
+	// Create future incomes (outside target period)
+	for i := 0; i < 2; i++ {
+		err = repo.AddIncome(ctx, userID, categoryID, amount, "future test income")
+		require.NoError(t, err)
+	}
+
+	// Get incomes for our target period
+	incomes, err := repo.GetIncomesForPeriod(ctx, userID, startTime, endTime)
+
+	require.NoError(t, err)
+	assert.NotNil(t, incomes)
+	assert.Len(t, incomes, targetIncomesCount)
+
+	for _, income := range incomes {
+		assert.Equal(t, "target test income", income.Description)
+		assert.Equal(t, userID, income.UserID)
+		assert.Equal(t, categoryID, income.CategoryID)
+		assert.Equal(t, amount, income.Amount.ToFloat())
+	}
+}
+
+func Test_IncomeRepository_GetIncomesForPeriod_ReturnsError_WhenInvalidUserID(t *testing.T) {
+	defer func() {
+		if err := testdb.TruncateTables(testdb.DB, testdb.UsersTable, testdb.IncomesTable); err != nil {
+			t.Fatal(err)
+		}
+	}()
+
+	validUserID := int64(1)
+	incomesCount := 1
+	categoryID := 1
+	amount := 20.99
+
+	startTime := setupTestTime()
+
+	seedUserIncomes(t, domain.Income{
+		UserID:      validUserID,
+		CategoryID:  categoryID,
+		Amount:      domain.NewMoneyFromFloat(amount),
+		Description: "test income",
+	}, incomesCount)
+
+	repo := infrastructure.NewIncomeRepository(testdb.DB)
+	ctx := context.Background()
+
+	endTime := setupTestTime()
+	invalidUserID := int64(999)
+	_, err := repo.GetIncomesForPeriod(ctx, invalidUserID, startTime, endTime)
 
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "does not exist")
+	assert.Contains(t, err.Error(), "User does not exist")
+}
+
+func Test_IncomeRepository_GetIncomesForPeriod_ReturnsError_WhenUserNotExist(t *testing.T) {
+	defer func() {
+		if err := testdb.TruncateTables(testdb.DB, testdb.UsersTable, testdb.IncomesTable); err != nil {
+			t.Fatal(err)
+		}
+	}()
+
+	repo := infrastructure.NewIncomeRepository(testdb.DB)
+	ctx := context.Background()
+
+	startTime := setupTestTime()
+	endTime := setupTestTime()
+	notExistingUserID := int64(999)
+	_, err := repo.GetIncomesForPeriod(ctx, notExistingUserID, startTime, endTime)
+
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "User does not exist")
 }
 
 func Test_IncomeRepository_GetIncomesForPeriod_ReturnsError_WhenInvalidDates(t *testing.T) {
@@ -223,13 +334,13 @@ func Test_IncomeRepository_GetIncomesForPeriod_ReturnsError_WhenInvalidDates(t *
 		},
 		{
 			name:      "end_date_one_hour_before_start",
-			startTime: time.Now(),
-			endTime:   time.Now().Add(-1 * time.Hour),
+			startTime: setupTestTime(),
+			endTime:   setupTestTime().Add(-1 * time.Hour),
 		},
 		{
 			name:      "end_date_one_minute_before_start",
-			startTime: time.Now(),
-			endTime:   time.Now().Add(-1 * time.Minute),
+			startTime: setupTestTime(),
+			endTime:   setupTestTime().Add(-1 * time.Minute),
 		},
 	}
 
@@ -253,8 +364,8 @@ func Test_IncomeRepository_GetIncomesForPeriod_ReturnsEmptySlice_WhenNoIncomes(t
 	repo := infrastructure.NewIncomeRepository(testdb.DB)
 
 	ctx := context.Background()
-	startTime := time.Now()
-	endTime := startTime.Add(3 * time.Hour)
+	startTime := setupTestTime()
+	endTime := setupTestTime()
 	incomes, err := repo.GetIncomesForPeriod(ctx, 1, startTime, endTime)
 
 	require.NoError(t, err)
