@@ -1,0 +1,11 @@
+[
+    {
+        "category_id": 1,
+        "incomes": {amount: 100  description: "test income"
+        }  incomes: {amount: 33  description: "test income"
+        }  incomes: {amount: 50  description: "test income"
+        } category_id: 2  incomes: {amount: 200  description: "test income"
+        }  incomes: {amount: 100  description: "test income"
+        }
+    }
+]

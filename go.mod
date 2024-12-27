@@ -5,11 +5,13 @@ go 1.23.1
 toolchain go1.23.3
 
 require (
+	github.com/DATA-DOG/go-sqlmock v1.5.2
 	github.com/KutsDenis/logzap v1.0.0
 	github.com/caarlos0/env/v6 v6.10.1
 	github.com/golang/mock v1.6.0
 	github.com/joho/godotenv v1.5.1
 	github.com/lib/pq v1.10.9
+	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.20.5
 	github.com/stretchr/testify v1.10.0
 	go.uber.org/zap v1.27.0

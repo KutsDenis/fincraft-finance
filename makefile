@@ -1,3 +1,4 @@
+TEST_DB_DSN := postgres://test_user:test_password@localhost:5433/test_db?sslmode=disable
 .PHONY: test generate-mocks generate-proto
 
 PROTO_DIR := ./api
@@ -23,3 +24,9 @@ test: generate-mocks generate-proto
 # Запуск тестов с генерацией моков и протофайлов используя gotestsum
 test-sum: generate-mocks generate-proto
 	gotestsum --format short-verbose ./...
+
+# Запуск тестов c генерацией моков, протофайлов и сбором покрытия
+test-coverage: generate-mocks generate-proto
+	@rm -f coverage.out
+	@go test -race -coverprofile=coverage.out ./...
+	@go tool cover -html=coverage.out
