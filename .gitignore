@@ -4,3 +4,6 @@
 # Конфиги
 .env
 !example.env
+
+# Тестовые данные
+coverage.out

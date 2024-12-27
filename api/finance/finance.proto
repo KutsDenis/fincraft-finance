@@ -26,12 +26,15 @@ message GetIncomesForPeriodRequest {
 }
 
 message GetIncomesForPeriodResponse {
-  repeated Income incomes = 1;
+  repeated CategoryIncome categories = 1;
+}
+
+message CategoryIncome {
+  int32 category_id = 1;
+  repeated Income incomes = 2;
 }
 
 message Income {
-  int64 user_id = 1;
-  int32 category_id = 2;
-  double amount = 3;
-  string description = 4;
+  int64 amount = 1;
+  string description = 2;
 }

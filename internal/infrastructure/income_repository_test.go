@@ -2,9 +2,11 @@ package infrastructure_test
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"time"
 
+	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -27,27 +29,45 @@ func seedDefaultUser(t *testing.T) {
 	require.NoError(t, err)
 }
 
+type UserIncomes struct {
+	UserID                int64
+	Email                 string
+	CategoryIncomesByDate map[time.Time][]CategoryIncomes
+}
+
+type CategoryIncomes struct {
+	CategoryID int32
+	Count      int
+	Amount     int64
+}
+
 // seedUsersAndIncomes создает пользователей и добавляет доходы в базу данных
-func seedUsersAndIncomes(t *testing.T, now time.Time) {
-	user := testdb.UserParams{ID: 1}
-	err := user.SeedUser(testdb.DB)
-	require.NoError(t, err)
+func seedUsersAndIncomes(t *testing.T, userIncomes []UserIncomes) {
+	if len(userIncomes) == 0 {
+		t.Error("userIncomes must not be empty")
+		return
+	}
 
-	// user 2
-	user = testdb.UserParams{ID: 2, Email: "test2@test.com"}
-	err = user.SeedUser(testdb.DB)
-	require.NoError(t, err)
+	// For each user
+	for _, userIncome := range userIncomes {
+		user := testdb.UserParams{ID: userIncome.UserID, Email: userIncome.Email}
+		err := user.SeedUser(testdb.DB)
+		require.NoError(t, err)
 
-	income := testdb.IncomeParams{UserID: 1, CreatedAt: now}
+		for date, categoryIncomes := range userIncome.CategoryIncomesByDate {
+			for idx, categoryIncome := range categoryIncomes {
+				income := testdb.IncomeParams{
+					UserID:     user.ID,
+					CategoryID: categoryIncome.CategoryID,
+					Amount:     categoryIncome.Amount,
+					CreatedAt:  date,
+				}
 
-	// user 1 with 4 incomes
-	err = income.SeedIncomes(testdb.DB, now, now.Add(time.Hour), now.Add(2*time.Hour), now.Add(3*time.Hour))
-	require.NoError(t, err)
-
-	// user 2 with 4 incomes
-	income = testdb.IncomeParams{UserID: 2, Amount: 20.99}
-	err = income.SeedIncomes(testdb.DB, now, now.Add(time.Hour), now.Add(2*time.Hour), now.Add(3*time.Hour))
-	require.NoError(t, err)
+				err := income.SeedIncome(testdb.DB)
+				require.NoErrorf(t, err, "failed to seed income %s", idx)
+			}
+		}
+	}
 }
 
 func Test_IncomeRepository_AddIncome_ReturnsNoError_WhenValidInput(t *testing.T) {
@@ -96,111 +116,104 @@ func Test_IncomeRepository_AddIncome_ReturnsError_WhenInvalidAmount(t *testing.T
 	assert.Contains(t, err.Error(), "violates check constraint")
 }
 
-// func Test_IncomeRepository_GetIncomesForPeriod_ReturnsSliceOfIncomes_WhenValidInput(t *testing.T) {
-// 	defer func() {
-// 		if err := testdb.TruncateTables(testdb.DB, testdb.UsersTable, testdb.IncomesTable); err != nil {
-// 			t.Fatal(err)
-// 		}
-// 	}()
+func Test_IncomeRepository_GetIncomesForPeriod_ReturnsSliceOfCategoryIncomes_WhenValidInput(t *testing.T) {
+	defer func() {
+		if err := testdb.TruncateTables(testdb.DB, testdb.UsersTable, testdb.IncomesTable); err != nil {
+			t.Fatal(err)
+		}
+	}()
 
-// 	now := time.Now()
-// 	seedUsersAndIncomes(t, now)
-// 	repo := infrastructure.NewIncomeRepository(testdb.DB)
+	now := time.Now()
+	yesterday := now.Add(-time.Hour * 24)
+	user1 := int64(1)
+	user1Email := "user1@example.com"
+	user2 := int64(2)
+	user2Email := "user2@example.com"
+	seedUsersAndIncomes(t, []UserIncomes{
+		{UserID: user1, Email: user1Email, CategoryIncomesByDate: map[time.Time][]CategoryIncomes{
+			now: {
+				{CategoryID: 1, Count: 1, Amount: 100},
+				{CategoryID: 1, Count: 3, Amount: 33},
+				{CategoryID: 2, Count: 2, Amount: 200},
+			},
+			yesterday: {
+				{CategoryID: 1, Count: 1, Amount: 50},
+				{CategoryID: 2, Count: 1, Amount: 100},
+			},
+		}},
+		{UserID: user2, Email: user2Email, CategoryIncomesByDate: map[time.Time][]CategoryIncomes{
+			now: {
+				{CategoryID: 1, Count: 1, Amount: 100},
+				{CategoryID: 1, Count: 3, Amount: 33},
+			},
+		}},
+	})
 
-// 	ctx := context.Background()
-// 	startTime := now.Format(time.RFC3339)
-// 	endDate := now.Add(3 * time.Hour).Format(time.RFC3339)
-// 	incomes, err := repo.GetIncomesForPeriod(ctx, 1, startTime, endDate)
+	repo := infrastructure.NewIncomeRepository(testdb.DB)
 
-// 	require.NoError(t, err)
-// 	assert.Len(t, incomes, 3)
+	ctx := context.Background()
+	startDate := yesterday.Add(-time.Hour * 24)
+	endDate := now.Add(time.Hour * 24)
 
-// 	assert.Equal(t, incomes[0].UserID, int64(1))
-// 	assert.Equal(t, incomes[1].UserID, int64(1))
-// 	assert.Equal(t, incomes[2].UserID, int64(1))
+	categoryIncomes, err := repo.GetIncomesForPeriod(ctx, user1, startDate, endDate)
 
-// 	assert.Equal(t, incomes[0].Amount, 10050)
-// }
+	require.NoError(t, err, "failed to get incomes")
+	require.Len(t, categoryIncomes, 2, "unexpected number of category incomes")
+}
 
-// func Test_IncomeRepository_GetIncomesForPeriod_ReturnsError_WhenInvalidUserID(t *testing.T) {
-// 	defer func() {
-// 		if err := testdb.TruncateTables(testdb.DB, testdb.UsersTable, testdb.IncomesTable); err != nil {
-// 			t.Fatal(err)
-// 		}
-// 	}()
+func Test_IncomeRepository_categoryIncomesMapFromRows_ReturnsError_WhenInvalidRows(t *testing.T) {
+	rows, err := testdb.DB.QueryContext(context.Background(), "SELECT 1")
+	assert.NoError(t, err)
 
-// 	now := time.Now()
-// 	seedUsersAndIncomes(t, now)
-// 	repo := infrastructure.NewIncomeRepository(testdb.DB)
+	_, err = infrastructure.CategoryIncomesMapFromRows(rows)
+	assert.Error(t, err)
+}
+func Test_IncomeRepository_GetIncomesForPeriod_ReturnsError_WhenRowsError(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	defer db.Close()
 
-// 	ctx := context.Background()
-// 	startTime := now.Format(time.RFC3339)
-// 	endDate := now.Add(3 * time.Hour).Format(time.RFC3339)
-// 	_, err := repo.GetIncomesForPeriod(ctx, 999, startTime, endDate)
+	repo := infrastructure.NewIncomeRepository(db)
 
-// 	require.Error(t, err)
-// 	assert.Contains(t, err.Error(), "does not exist")
-// }
+	mock.ExpectQuery(`SELECT (.+) FROM get_incomes_for_period\(\$1, \$2, \$3\)`).
+		WillReturnRows(sqlmock.NewRows([]string{"category_id", "amount", "description", "created_at"}).
+			AddRow(1, 100, "test", time.Now()).
+			RowError(0, fmt.Errorf("row error")))
 
-// func Test_IncomeRepository_GetIncomesForPeriod_ReturnsError_WhenInvalidDates(t *testing.T) {
-// 	defer func() {
-// 		if err := testdb.TruncateTables(testdb.DB, testdb.UsersTable, testdb.IncomesTable); err != nil {
-// 			t.Fatal(err)
-// 		}
-// 	}()
+	ctx := context.Background()
+	now := time.Now()
+	startDate := now.Add(-24 * time.Hour)
+	endDate := now
 
-// 	seedUsersAndIncomes(t, time.Now())
-// 	repo := infrastructure.NewIncomeRepository(testdb.DB)
+	_, err = repo.GetIncomesForPeriod(ctx, 1, startDate, endDate)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "error iterating rows")
 
-// 	ctx := context.Background()
-// 	_, err := repo.GetIncomesForPeriod(ctx, 1, "invalid date", "invalid date")
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Errorf("there were unfulfilled expectations: %s", err)
+	}
+}
+func Test_IncomeRepository_GetIncomesForPeriod_ReturnsError_WhenQueryFails(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	defer db.Close()
 
-// 	require.Error(t, err)
-// 	assert.Error(t, err, "invalid input syntax for type timestamp")
-// }
+	repo := infrastructure.NewIncomeRepository(db)
 
-// func Test_IncomeRepository_GetIncomesForPeriod_ReturnsEmptySlice_WhenNoIncomes(t *testing.T) {
-// 	defer func() {
-// 		if err := testdb.TruncateTables(testdb.DB, testdb.UsersTable, testdb.IncomesTable); err != nil {
-// 			t.Fatal(err)
-// 		}
-// 	}()
+	mock.ExpectQuery(`SELECT (.+) FROM get_incomes_for_period\(\$1, \$2, \$3\)`).
+		WithArgs(1, sqlmock.AnyArg(), sqlmock.AnyArg()).
+		WillReturnError(fmt.Errorf("database error"))
 
-// 	now := time.Now()
-// 	seedDefaultUser(t)
-// 	repo := infrastructure.NewIncomeRepository(testdb.DB)
+	ctx := context.Background()
+	now := time.Now()
+	startDate := now.Add(-24 * time.Hour)
+	endDate := now
 
-// 	ctx := context.Background()
-// 	startTime := now.Format(time.RFC3339)
-// 	endDate := now.Add(3 * time.Hour).Format(time.RFC3339)
-// 	incomes, err := repo.GetIncomesForPeriod(ctx, 1, startTime, endDate)
+	_, err = repo.GetIncomesForPeriod(ctx, 1, startDate, endDate)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to get incomes")
 
-// 	require.NoError(t, err)
-// 	assert.Empty(t, incomes)
-// }
-
-// func Test_IncomeRepository_GetIncomesForPeriod_ReturnsIncomesForDifferentUsers(t *testing.T) {
-// 	defer func() {
-// 		if err := testdb.TruncateTables(testdb.DB, testdb.UsersTable, testdb.IncomesTable); err != nil {
-// 			t.Fatal(err)
-// 		}
-// 	}()
-
-// 	now := time.Now()
-// 	seedUsersAndIncomes(t, now)
-// 	repo := infrastructure.NewIncomeRepository(testdb.DB)
-
-// 	ctx := context.Background()
-// 	startTime := now.Format(time.RFC3339)
-// 	endDate := now.Add(3 * time.Hour).Format(time.RFC3339)
-// 	incomes, err := repo.GetIncomesForPeriod(ctx, 2, startTime, endDate)
-
-// 	require.NoError(t, err)
-// 	assert.Len(t, incomes, 3)
-
-// 	assert.Equal(t, incomes[0].UserID, int64(2))
-// 	assert.Equal(t, incomes[1].UserID, int64(2))
-// 	assert.Equal(t, incomes[2].UserID, int64(2))
-
-// 	assert.Equal(t, incomes[0].Amount, 2099)
-// }
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Errorf("there were unfulfilled expectations: %s", err)
+	}
+}

@@ -67,7 +67,7 @@ func TruncateTables(db *sql.DB, tables ...string) error {
 
 // UserParams содержит параметры для создания тестового пользователя.
 type UserParams struct {
-	ID    int
+	ID    int64
 	Email string
 	Name  string
 }
@@ -94,9 +94,9 @@ func (p *UserParams) SeedUser(db *sql.DB) error {
 
 // IncomeParams содержит параметры для создания тестового дохода.
 type IncomeParams struct {
-	UserID      int
-	CategoryID  int
-	Amount      float64
+	UserID      int64
+	CategoryID  int32
+	Amount      int64
 	Description string
 	CreatedAt   time.Time
 }
@@ -104,7 +104,7 @@ type IncomeParams struct {
 // SeedIncomes добавляет тестовые доходы.
 // Указание параметров необязательно.
 // Если указаны даты, то доходы будут добавлены на эти даты. Иначе - на текущую дату.
-func (p *IncomeParams) SeedIncomes(db *sql.DB, dates ...time.Time) error {
+func (p *IncomeParams) SeedIncome(db *sql.DB) error {
 	if p.UserID == 0 {
 		p.UserID = 1
 	}
@@ -112,7 +112,7 @@ func (p *IncomeParams) SeedIncomes(db *sql.DB, dates ...time.Time) error {
 		p.CategoryID = 1
 	}
 	if p.Amount == 0 {
-		p.Amount = 100.50
+		p.Amount = 10050
 	}
 	if p.Description == "" {
 		p.Description = "test income"
@@ -126,21 +126,9 @@ func (p *IncomeParams) SeedIncomes(db *sql.DB, dates ...time.Time) error {
 		VALUES ($1, $2, $3, $4, $5)
 	`
 
-	for _, date := range dates {
-		if date.IsZero() {
-			date = p.CreatedAt
-		}
-		_, err := db.Exec(q, p.UserID, p.CategoryID, p.Amount, p.Description, date)
-		if err != nil {
-			return err
-		}
-	}
-
-	if len(dates) == 0 {
-		_, err := db.Exec(q, p.UserID, p.CategoryID, p.Amount, p.Description, p.CreatedAt)
-		if err != nil {
-			return err
-		}
+	_, err := db.Exec(q, p.UserID, p.CategoryID, p.Amount, p.Description, p.CreatedAt)
+	if err != nil {
+		return err
 	}
 
 	return nil
