@@ -1,3 +1,4 @@
+include .env
 .PHONY: test generate-mocks generate-proto
 
 PROTO_DIR := ./api

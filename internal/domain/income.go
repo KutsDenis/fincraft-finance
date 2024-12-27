@@ -5,7 +5,7 @@ import "errors"
 // Income представляет бизнес-объект дохода
 type Income struct {
 	UserID      int64
-	CategoryID  int
+	CategoryID  int32
 	Amount      Money
 	Description string
 }

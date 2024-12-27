@@ -8,6 +8,7 @@ import (
 	"time"
 
 	// Импортируем PostgreSQL-драйвер
+
 	_ "github.com/lib/pq"
 )
 

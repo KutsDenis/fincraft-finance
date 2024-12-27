@@ -12,7 +12,7 @@ import (
 
 // IncomeService контракт сервиса для работы с доходами
 type IncomeService interface {
-	AddIncome(ctx context.Context, userID int64, categoryID int, amount float64, description string) error
+	AddIncome(ctx context.Context, userID int64, categoryID int32, amount int64, description string) error
 	GetIncomesForPeriod(ctx context.Context, userID int64, startDate, endDate string) ([]*domain.Income, error)
 }
 
@@ -27,11 +27,11 @@ func NewIncomeUseCase(repo IncomeRepository) *IncomeUseCase {
 }
 
 // AddIncome добавляет новый доход в хранилище данных
-func (u *IncomeUseCase) AddIncome(ctx context.Context, userID int64, categoryID int, amount float64, description string) error {
+func (u *IncomeUseCase) AddIncome(ctx context.Context, userID int64, categoryID int32, amount int64, description string) error {
 	income := &domain.Income{
 		UserID:      userID,
 		CategoryID:  categoryID,
-		Amount:      domain.NewMoneyFromFloat(amount),
+		Amount:      domain.Money(amount),
 		Description: description,
 	}
 
